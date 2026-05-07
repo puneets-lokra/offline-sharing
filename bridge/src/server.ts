@@ -8,6 +8,7 @@ import { dataRouter } from './api/data';
 import { recordsRouter } from './api/records';
 import { qrRouter } from './api/qr';
 import { qrConfigRouter } from './api/qrConfig';
+import { sessionRouter } from './api/session';
 import { Database } from './storage/sqlite';
 import { CloudSync } from './sync/cloudSync';
 
@@ -41,6 +42,7 @@ export function createServer(
   app.use('/records', recordsRouter(db));
   app.use('/qr', qrRouter(config));
   app.use('/qr-config', qrConfigRouter(config));
+  app.use('/session', sessionRouter());
 
   // SPA fallback — return PWA index.html for unknown routes (except /dashboard)
   app.get('*', (req, res) => {

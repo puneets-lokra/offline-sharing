@@ -2,33 +2,19 @@ import { PatientRecord } from '../db/indexeddb';
 
 /**
  * Build candidate bridge URLs in order:
- * 1. ?bridge= URL param — explicit override (used when PWA hosted on GitHub Pages)
- * 2. The origin the PWA was served from (covers ngrok, LAN IP, hotspot IP)
- * 3. localhost:8765  — dev mode / single-machine
- * 4. 192.168.137.1  — Windows Wi-Fi Direct hotspot (production)
+ * 1. The origin the PWA was served from (covers cloudflare tunnel, LAN IP, hotspot IP)
+ * 2. localhost:8765  — dev mode / single-machine
+ * 3. 192.168.137.1  — Windows Wi-Fi Direct hotspot (production)
  */
 function buildCandidates(): string[] {
   const candidates: string[] = [];
-
-  // Explicit bridge URL passed as ?bridge=https://...
-  if (typeof window !== 'undefined') {
-    const params = new URLSearchParams(window.location.search);
-    const explicit = params.get('bridge');
-    if (explicit) candidates.push(explicit.replace(/\/$/, ''));
-  }
-
   if (typeof window !== 'undefined') {
     const { protocol, hostname, port } = window.location;
     const origin = `${protocol}//${hostname}${port ? ':' + port : ''}`;
-    // Don't add GitHub Pages origin — it's not the bridge
-    if (!origin.includes('github.io')) {
-      candidates.push(origin);
-    }
+    if (!origin.includes('github.io')) candidates.push(origin);
   }
-
   candidates.push('http://localhost:8765');
   candidates.push('http://192.168.137.1:8765');
-
   return [...new Set(candidates)];
 }
 

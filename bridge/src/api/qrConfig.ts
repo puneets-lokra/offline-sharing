@@ -16,14 +16,7 @@ export function qrConfigRouter(config: BridgeConfig): Router {
       ? config.ngrokUrl.replace(/\/$/, '')
       : `http://192.168.137.1:${config.port}`;
 
-    // If a GitHub Pages URL is configured, the PWA is hosted there.
-    // Embed ?bridge=<bridgeUrl> so the patient app knows where to sync.
-    const pwaBaseUrl = config.githubPagesUrl
-      ? `${config.githubPagesUrl.replace(/\/$/, '')}?bridge=${encodeURIComponent(bridgeUrl)}`
-      : bridgeUrl;
-
     res.json({
-      pwaBaseUrl,
       bridgeUrl,
       ssid:     config.hotspot.ssid,
       password: config.hotspot.password,

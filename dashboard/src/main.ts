@@ -44,7 +44,7 @@ function updateStats(): void {
  * Fetches QR config from the bridge (pwaBaseUrl, ssid, password).
  * Falls back to sensible defaults if bridge not reachable yet.
  */
-async function fetchQRConfig(): Promise<{ pwaBaseUrl: string; ssid: string; password: string }> {
+async function fetchQRConfig(): Promise<{ bridgeUrl: string }> {
   const candidates = ['http://localhost:8765', 'http://192.168.137.1:8765'];
   for (const base of candidates) {
     try {
@@ -52,8 +52,7 @@ async function fetchQRConfig(): Promise<{ pwaBaseUrl: string; ssid: string; pass
       if (res.ok) return await res.json();
     } catch { /* try next */ }
   }
-  // Fallback defaults
-  return { pwaBaseUrl: 'http://192.168.137.1:8765', ssid: 'ClinicBridge', password: 'clinic1234' };
+  return { bridgeUrl: 'http://192.168.137.1:8765' };
 }
 
 async function main() {

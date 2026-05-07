@@ -5,11 +5,24 @@ import { getPendingRecords, markRecordsSynced } from './db/indexeddb';
 import { isBridgeReachable, flushRecords } from './sync/bridgeSync';
 import { BLESync } from './sync/bleSync';
 const SYNC_POLL_INTERVAL_MS = 5000;
-// Parse doctor context from QR code URL params
+// Read session code from URL — all doctor context comes from the bridge API
 const urlParams = new URLSearchParams(window.location.search);
-const qrDoctorId = urlParams.get('doctorId') ?? '';
-const qrDoctorName = urlParams.get('doctorName') ?? '';
-const isPatientMode = qrDoctorId.length > 0;
+const sessionCode = urlParams.get('session') ?? '';
+/**
+ * Fetches doctor context from the bridge using the session code.
+ * Returns empty strings if no session or bridge unreachable.
+ */
+async function fetchSessionContext(bridgeUrl, code) {
+    if (!code)
+        return { doctorId: '', doctorName: '' };
+    try {
+        const res = await fetch(`${bridgeUrl}/session/${code}`, { signal: AbortSignal.timeout(4000) });
+        if (res.ok)
+            return await res.json();
+    }
+    catch { /* bridge not reachable yet */ }
+    return { doctorId: '', doctorName: '' };
+}
 // Single shared BLE instance
 const bleSync = new BLESync((status) => {
     console.log('[ble-status]', status);
@@ -44,6 +57,38 @@ async function bleSendPending(listSection) {
 }
 async function main() {
     const app = document.getElementById('app');
+    // Resolve bridge URL first (needed for session fetch + sync)
+    // resolveBridgeUrl is not exported, so we do a quick probe here via isBridgeReachable
+    // then grab the URL by checking candidates in order
+    const bridgeCandidates = (() => {
+        const c = [];
+        const params = new URLSearchParams(window.location.search);
+        const explicit = params.get('bridge');
+        if (explicit)
+            c.push(explicit.replace(/\/$/, ''));
+        const { protocol, hostname, port } = window.location;
+        const origin = `${protocol}//${hostname}${port ? ':' + port : ''}`;
+        if (!origin.includes('github.io'))
+            c.push(origin);
+        c.push('http://localhost:8765');
+        c.push('http://192.168.137.1:8765');
+        return [...new Set(c)];
+    })();
+    let resolvedBridge = bridgeCandidates[0];
+    for (const url of bridgeCandidates) {
+        try {
+            const r = await fetch(`${url}/health`, { signal: AbortSignal.timeout(3000) });
+            if (r.ok) {
+                resolvedBridge = url;
+                break;
+            }
+        }
+        catch { /* try next */ }
+    }
+    // Fetch doctor context from bridge session
+    const { doctorId: qrDoctorId, doctorName: qrDoctorName } = await fetchSessionContext(resolvedBridge, sessionCode);
+    const isPatientMode = qrDoctorId.length > 0;
+    ;
     // Header
     const header = document.createElement('header');
     header.innerHTML = `
