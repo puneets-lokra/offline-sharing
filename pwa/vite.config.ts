@@ -14,6 +14,9 @@ export default defineConfig({
       manifest: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // Bust the cache on every deploy
+        additionalManifestEntries: [],
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: /^http:\/\/192\.168\.137\.1:\d+\/health$/,
