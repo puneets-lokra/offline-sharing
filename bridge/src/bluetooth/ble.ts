@@ -12,10 +12,35 @@ export interface BLEServer {
   stop: () => void;
 }
 
+/**
+ * Bleno crashes on process.exit when no USB BT adapter is present — it calls
+ * controlTransfer on an undefined usbDevice inside its onExit hook.
+ * Install a one-time uncaughtException guard BEFORE requiring bleno so the
+ * bridge process doesn't die from bleno's cleanup errors.
+ */
+function installBlenoExitGuard(): void {
+  process.on('uncaughtException', (err: Error) => {
+    // Swallow bleno USB teardown errors — they are non-fatal
+    const msg = err?.message ?? '';
+    if (
+      msg.includes('controlTransfer') ||
+      msg.includes('usbDevice') ||
+      msg.includes('bluetooth-hci-socket')
+    ) {
+      console.warn('[ble] Suppressed bleno USB teardown error (non-fatal):', msg);
+      return;
+    }
+    // Re-throw anything else so real crashes still surface
+    console.error('[bridge] Uncaught exception:', err);
+    process.exit(1);
+  });
+}
+
 export async function startBLE(db: Database): Promise<BLEServer | null> {
   let bleno: any;
   try {
     // Dynamic require — avoids build-time failure when bleno is not installed
+    installBlenoExitGuard();
     bleno = require('@abandonware/bleno');
   } catch {
     console.warn('[ble] @abandonware/bleno not installed — BLE transport disabled');
