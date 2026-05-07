@@ -1,0 +1,261 @@
+<mxfile host="app.diagrams.net" agent="OpenCode">
+  <diagram name="Scenario 1 - WiFi Direct" id="scenario1-wifi-direct">
+    <mxGraphModel dx="2055" dy="1085" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#1a1a2e;" value="Scenario 1 — Wi-Fi Direct (Bridge Hotspot)" vertex="1">
+          <mxGeometry height="40" width="1000" x="327" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="bridge-container" parent="1" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;strokeWidth=2;fontStyle=1;fontSize=13;fontColor=#1e3a5f;startSize=35;rounded=1;arcSize=4;" value="Bridge Machine (Windows .exe)" vertex="1">
+          <mxGeometry height="560" width="700" x="477" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="wifi-adapter" parent="bridge-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;arcSize=10;" value="Wi-Fi Adapter&#xa;SSID: ClinicBridge&#xa;IP: 192.168.137.1" vertex="1">
+          <mxGeometry height="70" width="200" x="50" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="hotspot-icon" parent="bridge-container" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontColor=#7d4e00;" value="📶 Hotspot Active" vertex="1">
+          <mxGeometry height="20" width="150" x="75" y="132" as="geometry" />
+        </mxCell>
+        <mxCell id="express-server" parent="bridge-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;arcSize=10;" value="Node.js Express Server :8765" vertex="1">
+          <mxGeometry height="40" width="340" x="180" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="api-post-data" parent="bridge-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;arcSize=15;" value="POST /data&#xa;Validate + Upsert record" vertex="1">
+          <mxGeometry height="50" width="175" x="80" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="api-get-records" parent="bridge-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;arcSize=15;" value="GET /records&#xa;Return all records (JSON)" vertex="1">
+          <mxGeometry height="50" width="175" x="270" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="api-health" parent="bridge-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;arcSize=15;" value="GET /health&#xa;{ status: ok, version }" vertex="1">
+          <mxGeometry height="50" width="175" x="460" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="api-status" parent="bridge-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;arcSize=15;" value="GET /status&#xa;Hotspot + sync state" vertex="1">
+          <mxGeometry height="50" width="175" x="460" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="serves-pwa" parent="bridge-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;arcSize=15;" value="Serves PWA static files&#xa;pwa/dist/ → http://192.168.137.1:8765/" vertex="1">
+          <mxGeometry height="50" width="340" x="80" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="sqlite" parent="bridge-container" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontColor=#333333;" value="SQLite Database&#xa;bridge.db — source of truth&#xa;Upsert by id (idempotent)" vertex="1">
+          <mxGeometry height="80" width="240" x="230" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="cloud-sync" parent="bridge-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#999999;fontSize=10;arcSize=15;dashed=1;" value="cloudSync.ts&#xa;Polls internet every 30s&#xa;Pushes pending → Cloud API" vertex="1">
+          <mxGeometry height="60" width="210" x="470" y="445" as="geometry" />
+        </mxCell>
+        <mxCell id="hotspot-ts" parent="bridge-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;arcSize=15;" value="hotspot.ts&#xa;netsh wlan set hostednetwork&#xa;netsh wlan start hostednetwork" vertex="1">
+          <mxGeometry height="60" width="210" x="50" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-post-sqlite" edge="1" parent="bridge-container" source="api-post-data" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;strokeColor=#b85450;" target="sqlite">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-get-sqlite" edge="1" parent="bridge-container" source="api-get-records" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;" target="sqlite">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-sqlite-cloud" edge="1" parent="bridge-container" source="sqlite" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;strokeColor=#999999;dashed=1;" target="cloud-sync">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="client1-container" parent="1" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#27ae60;strokeWidth=2;fontStyle=1;fontSize=12;fontColor=#1a5c2a;startSize=35;rounded=1;arcSize=4;" value="Client 1 — Doctor PWA" vertex="1">
+          <mxGeometry height="420" width="280" x="100" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="c1-device" parent="client1-container" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=11;fontStyle=1;" value="📱 Android Chrome" vertex="1">
+          <mxGeometry height="25" width="160" x="60" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="c1-pwa" parent="client1-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#27ae60;fontSize=10;arcSize=10;" value="PWA (Service Worker)&#xa;App shell cached offline" vertex="1">
+          <mxGeometry height="45" width="220" x="30" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c1-form" parent="client1-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8f9fa;strokeColor=#27ae60;fontSize=10;arcSize=10;" value="RecordForm.ts&#xa;patientId, name, age&#xa;gender, diagnosis, notes&#xa;doctorId" vertex="1">
+          <mxGeometry height="65" width="220" x="30" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="c1-indexeddb" parent="client1-container" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" value="IndexedDB&#xa;Stores records locally&#xa;syncStatus: pending | synced" vertex="1">
+          <mxGeometry height="60" width="150" x="65" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="c1-sync" parent="client1-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;fontSize=10;arcSize=10;" value="bridgeSync.ts&#xa;Auto-detect bridge&#xa;localhost → 192.168.137.1" vertex="1">
+          <mxGeometry height="50" width="220" x="30" y="295" as="geometry" />
+        </mxCell>
+        <mxCell id="c1-wifi" parent="client1-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;arcSize=10;" value="Wi-Fi: ClinicBridge&#xa;192.168.137.x" vertex="1">
+          <mxGeometry height="40" width="150" x="65" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="client2-container" parent="1" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#c0392b;strokeWidth=2;fontStyle=1;fontSize=12;fontColor=#5c1a1a;startSize=35;rounded=1;arcSize=4;" value="Client 2 — Dashboard PWA" vertex="1">
+          <mxGeometry height="420" width="280" x="1180" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="c2-device" parent="client2-container" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=11;fontStyle=1;" value="📱 Android Chrome" vertex="1">
+          <mxGeometry height="25" width="160" x="60" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="c2-pwa" parent="client2-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#c0392b;fontSize=10;arcSize=10;" value="Dashboard PWA (Service Worker)&#xa;App shell cached offline" vertex="1">
+          <mxGeometry height="45" width="220" x="30" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c2-poller" parent="client2-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;fontSize=10;arcSize=10;" value="httpPoller.ts&#xa;GET /records every 5s&#xa;from 192.168.137.1:8765" vertex="1">
+          <mxGeometry height="50" width="220" x="30" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="c2-cache" parent="client2-container" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" value="IndexedDB Cache&#xa;Last-known records&#xa;Shown when offline" vertex="1">
+          <mxGeometry height="60" width="150" x="65" y="205" as="geometry" />
+        </mxCell>
+        <mxCell id="c2-table" parent="client2-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8f9fa;strokeColor=#c0392b;fontSize=10;arcSize=10;" value="RecordTable.ts&#xa;Live patient records table&#xa;Auto-refreshes on new data" vertex="1">
+          <mxGeometry height="50" width="220" x="30" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="c2-status" parent="client2-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#999;fontSize=10;arcSize=10;" value="ConnectionStatus.ts&#xa;● HTTP polling / ○ Offline cache" vertex="1">
+          <mxGeometry height="40" width="220" x="30" y="345" as="geometry" />
+        </mxCell>
+        <mxCell id="c2-wifi" parent="client2-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;arcSize=10;" value="Wi-Fi: ClinicBridge&#xa;192.168.137.y" vertex="1">
+          <mxGeometry height="40" width="150" x="65" y="395" as="geometry" />
+        </mxCell>
+        <mxCell id="cloud-container" parent="1" style="swimlane;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#8e44ad;strokeWidth=2;fontStyle=1;fontSize=12;fontColor=#4a1a6b;startSize=35;rounded=1;arcSize=4;dashed=1;" value="Cloud API (Node.js)" vertex="1">
+          <mxGeometry height="210" width="680" x="510" y="770" as="geometry" />
+        </mxCell>
+        <mxCell id="cloud-internet-note" parent="cloud-container" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontStyle=2;fontColor=#8e44ad;" value="⚠ Only reachable when internet is available" vertex="1">
+          <mxGeometry height="20" width="300" x="60" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="cloud-post" parent="cloud-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#8e44ad;fontSize=10;arcSize=15;" value="POST /records&#xa;Batch upsert — idempotent" vertex="1">
+          <mxGeometry height="50" width="180" x="10" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="cloud-get" parent="cloud-container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#8e44ad;fontSize=10;arcSize=15;" value="GET /records&#xa;Return all stored records" vertex="1">
+          <mxGeometry height="50" width="180" x="420" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="cloud-db" parent="cloud-container" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#8e44ad;fontSize=10;" value="SQLite / PostgreSQL" vertex="1">
+          <mxGeometry height="55" width="110" x="203" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="wifi-band" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffde7;strokeColor=#f9a825;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#7d4e00;dashed=1;" value="ClinicBridge Wi-Fi Network (192.168.137.0/24) — No internet required" vertex="1">
+          <mxGeometry height="35" width="1360" x="100" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="step1-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=9;fontStyle=1;fontColor=#27ae60;" value="① Fill patient record form" vertex="1">
+          <mxGeometry height="20" width="200" x="100" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-form-idb" edge="1" parent="1" source="c1-form" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#27ae60;strokeWidth=1.5;" target="c1-indexeddb">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label-form-idb" connectable="0" parent="arrow-form-idb" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#27ae60;" value="② Save to IndexedDB&#xa;syncStatus: pending" vertex="1">
+          <mxGeometry relative="1" x="-0.1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow-idb-sync" edge="1" parent="1" source="c1-indexeddb" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#2563eb;strokeWidth=1.5;" target="c1-sync">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-c1-bridge" edge="1" parent="1" source="c1-sync" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#2563eb;strokeWidth=2.5;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.55;entryDx=0;entryDy=0;" target="api-post-data">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="400" y="505" />
+              <mxPoint x="400" y="325" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label-c1-bridge" connectable="0" parent="arrow-c1-bridge" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontStyle=1;fontColor=#2563eb;background=#ffffff;" value="③ POST /data&#xa;(HTTP over Wi-Fi)" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="-10" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow-bridge-c1-ok" edge="1" parent="1" source="api-post-data" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#27ae60;strokeWidth=1.5;dashed=1;exitX=0;exitY=0.55;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="c1-sync">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="430" y="340" />
+              <mxPoint x="430" y="520" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label-bridge-c1-ok" connectable="0" parent="arrow-bridge-c1-ok" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#27ae60;background=#ffffff;" value="④ { ok: true }&#xa;Mark synced" vertex="1">
+          <mxGeometry relative="1" x="0.2" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow-c2-bridge" edge="1" parent="1" source="c2-poller" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#c0392b;strokeWidth=2.5;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.55;entryDx=0;entryDy=0;" target="api-get-records">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1155" y="345" />
+              <mxPoint x="1155" y="325" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label-c2-bridge" connectable="0" parent="arrow-c2-bridge" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontStyle=1;fontColor=#c0392b;background=#ffffff;" value="⑤ GET /records every 5s&#xa;(HTTP over Wi-Fi)" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="-10" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow-bridge-c2" edge="1" parent="1" source="api-get-records" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#27ae60;strokeWidth=1.5;dashed=1;exitX=1;exitY=0.55;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="c2-poller">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1130" y="325" />
+              <mxPoint x="1130" y="358" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label-bridge-c2" connectable="0" parent="arrow-bridge-c2" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#27ae60;background=#ffffff;" value="⑥ Records JSON array&#xa;Update table + cache" vertex="1">
+          <mxGeometry relative="1" x="0.2" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow-bridge-cloud" edge="1" parent="1" source="cloud-sync" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#8e44ad;strokeWidth=2;dashed=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="cloud-post">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1012" y="740" />
+              <mxPoint x="827" y="740" />
+              <mxPoint x="827" y="850" />
+              <mxPoint x="610" y="850" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label-bridge-cloud" connectable="0" parent="arrow-bridge-cloud" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#8e44ad;background=#ffffff;" value="⑦ HTTPS POST /records&#xa;When internet returns" vertex="1">
+          <mxGeometry relative="1" x="0.2" as="geometry">
+            <mxPoint x="63" y="24" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="line-c1-band" edge="1" parent="1" source="c1-wifi" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#f9a825;strokeWidth=1.5;dashed=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.1;entryY=0.5;entryDx=0;entryDy=0;" target="wifi-band">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-bridge-band" edge="1" parent="1" source="wifi-adapter" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#f9a825;strokeWidth=1.5;dashed=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0.5;entryDx=0;entryDy=0;" target="wifi-band">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="627" y="720" />
+              <mxPoint x="780" y="667" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="line-c2-band" edge="1" parent="1" source="c2-wifi" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#f9a825;strokeWidth=1.5;dashed=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.9;entryY=0.5;entryDx=0;entryDy=0;" target="wifi-band">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" parent="1" style="swimlane;startSize=25;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=11;" value="Legend" vertex="1">
+          <mxGeometry height="160" width="380" x="90" y="1020" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1" edge="1" parent="legend" style="endArrow=block;endFill=1;strokeColor=#2563eb;strokeWidth=2.5;" value="">
+          <mxGeometry height="20" width="80" x="20" y="45" as="geometry">
+            <mxPoint x="20" y="55" as="sourcePoint" />
+            <mxPoint x="100" y="55" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="leg1-label" parent="legend" style="text;html=1;fontSize=10;align=left;" value="HTTP Request (offline-safe, LAN)" vertex="1">
+          <mxGeometry height="20" width="250" x="110" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2" edge="1" parent="legend" style="endArrow=block;endFill=1;strokeColor=#27ae60;strokeWidth=1.5;dashed=1;" value="">
+          <mxGeometry height="20" width="80" x="20" y="75" as="geometry">
+            <mxPoint x="20" y="85" as="sourcePoint" />
+            <mxPoint x="100" y="85" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="leg2-label" parent="legend" style="text;html=1;fontSize=10;align=left;" value="HTTP Response" vertex="1">
+          <mxGeometry height="20" width="250" x="110" y="75" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3" edge="1" parent="legend" style="endArrow=block;endFill=1;strokeColor=#8e44ad;strokeWidth=2;dashed=1;" value="">
+          <mxGeometry height="20" width="80" x="20" y="105" as="geometry">
+            <mxPoint x="20" y="115" as="sourcePoint" />
+            <mxPoint x="100" y="115" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="leg3-label" parent="legend" style="text;html=1;fontSize=10;align=left;" value="HTTPS to Cloud (internet required)" vertex="1">
+          <mxGeometry height="20" width="250" x="110" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4" edge="1" parent="legend" style="endArrow=block;endFill=1;strokeColor=#f9a825;strokeWidth=1.5;dashed=1;" value="">
+          <mxGeometry height="20" width="80" x="20" y="135" as="geometry">
+            <mxPoint x="20" y="145" as="sourcePoint" />
+            <mxPoint x="100" y="145" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="leg4-label" parent="legend" style="text;html=1;fontSize=10;align=left;" value="Wi-Fi connection (must join ClinicBridge)" vertex="1">
+          <mxGeometry height="20" width="250" x="110" y="135" as="geometry" />
+        </mxCell>
+        <mxCell id="flow-summary" parent="1" style="swimlane;startSize=25;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#27ae60;fontStyle=1;fontSize=11;" value="Offline Sync Flow (No Internet Required)" vertex="1">
+          <mxGeometry height="160" width="540" x="1040" y="1009" as="geometry" />
+        </mxCell>
+        <mxCell id="flow-steps" parent="flow-summary" style="text;html=1;fontSize=10;align=left;verticalAlign=top;" value="① Both devices connect to ClinicBridge Wi-Fi hotspot&#xa;② Doctor opens http://192.168.137.1:8765 — PWA loads (cached)&#xa;③ Doctor fills patient record → saved to IndexedDB (pending)&#xa;④ bridgeSync detects bridge → POST /data to bridge&#xa;⑤ Bridge upserts record into SQLite → { ok: true }&#xa;⑥ Client 2 polls GET /records every 5s → table updates&#xa;⑦ (Later) Bridge detects internet → pushes to Cloud API" vertex="1">
+          <mxGeometry height="120" width="510" x="15" y="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

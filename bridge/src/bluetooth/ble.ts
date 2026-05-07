@@ -1,0 +1,87 @@
+/**
+ * ble.ts — BLE GATT peripheral server (optional transport).
+ *
+ * @abandonware/bleno is an optional dependency (requires node-gyp + Python to build).
+ * If it is not installed, startBLE() resolves to null and the bridge continues in HTTP-only mode.
+ */
+
+import { Database } from '../storage/sqlite';
+
+export interface BLEServer {
+  notifyChar: { push(record: object): void };
+  stop: () => void;
+}
+
+export async function startBLE(db: Database): Promise<BLEServer | null> {
+  let bleno: any;
+  try {
+    // Dynamic require — avoids build-time failure when bleno is not installed
+    bleno = require('@abandonware/bleno');
+  } catch {
+    console.warn('[ble] @abandonware/bleno not installed — BLE transport disabled');
+    return null;
+  }
+
+  const { SERVICE_UUID } = await import('./uuids');
+  const { WriteCharacteristic } = await import('./writeCharacteristic');
+  const { NotifyCharacteristic } = await import('./notifyCharacteristic');
+  const { ReadCharacteristic } = await import('./readCharacteristic');
+
+  return new Promise((resolve) => {
+    const notifyChar = new NotifyCharacteristic(bleno);
+    const writeChar = new WriteCharacteristic(bleno, db, notifyChar);
+    const readChar = new ReadCharacteristic(bleno, db);
+
+    const timeout = setTimeout(() => {
+      console.warn('[ble] BLE state timeout — continuing without BLE');
+      resolve(null);
+    }, 5000);
+
+    bleno.on('stateChange', (state: string) => {
+      if (state !== 'poweredOn') {
+        console.warn(`[ble] Bluetooth state: ${state} — BLE not available`);
+        clearTimeout(timeout);
+        resolve(null);
+        return;
+      }
+
+      bleno.startAdvertising('ClinicBridge', [SERVICE_UUID], (err: Error | null) => {
+        if (err) {
+          console.warn('[ble] Failed to start advertising:', err.message);
+          clearTimeout(timeout);
+          resolve(null);
+        }
+      });
+    });
+
+    bleno.on('advertisingStart', (err: Error | null) => {
+      clearTimeout(timeout);
+      if (err) {
+        console.warn('[ble] advertisingStart error:', err.message);
+        resolve(null);
+        return;
+      }
+
+      bleno.setServices([
+        new bleno.PrimaryService({
+          uuid: SERVICE_UUID,
+          characteristics: [writeChar.bleChar, notifyChar.bleChar, readChar.bleChar],
+        }),
+      ]);
+
+      console.log('[ble] BLE GATT server advertising as "ClinicBridge"');
+
+      resolve({
+        notifyChar,
+        stop: () => {
+          bleno.stopAdvertising();
+          bleno.disconnect();
+          console.log('[ble] BLE server stopped');
+        },
+      });
+    });
+
+    bleno.on('accept', (addr: string) => console.log(`[ble] Client connected: ${addr}`));
+    bleno.on('disconnect', (addr: string) => console.log(`[ble] Client disconnected: ${addr}`));
+  });
+}

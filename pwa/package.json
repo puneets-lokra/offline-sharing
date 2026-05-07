@@ -1,0 +1,21 @@
+{
+  "name": "clinic-pwa",
+  "version": "1.0.0",
+  "description": "Offline-first PWA for patient record capture",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "idb": "^8.0.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/uuid": "^9.0.7",
+    "@types/web-bluetooth": "^0.0.21",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.0",
+    "vite-plugin-pwa": "^0.19.0"
+  }
+}

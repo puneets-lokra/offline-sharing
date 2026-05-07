@@ -1,0 +1,17 @@
+{
+  "port": 8765,
+  "hotspot": {
+    "ssid": "ClinicBridge",
+    "password": "clinic1234",
+    "enabled": true
+  },
+  "cloudApi": {
+    "url": "http://localhost:3001",
+    "syncIntervalSeconds": 30
+  },
+  "db": {
+    "path": "./data/bridge.db"
+  },
+  "ngrokUrl": "https://commonwealth-formerly-canberra-increased.trycloudflare.com",
+  "githubPagesUrl": "https://puneets-lokra.github.io/offline-sharing"
+}

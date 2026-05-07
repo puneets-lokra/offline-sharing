@@ -1,0 +1,22 @@
+{
+  "name": "clinic-dashboard",
+  "version": "1.0.0",
+  "description": "Clinic Bridge Dashboard — Client 2, real-time record viewer",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "idb": "^8.0.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@types/qrcode": "^1.5.6",
+    "@types/web-bluetooth": "^0.0.21",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.0",
+    "vite-plugin-pwa": "^0.19.0"
+  }
+}
