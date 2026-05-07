@@ -109,6 +109,15 @@
       /* Patient / QR mode */
       .doctor-banner { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #e8f0fe; border-radius: 6px; font-size: 0.875rem; color: #1a1a2e; margin-bottom: 14px; }
       .doctor-id-badge { background: #1a73e8; color: #fff; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-left: 4px; }
+
+      /* Wi-Fi QR section */
+      .wifi-qr-section { margin: 0 0 12px; }
+      .wifi-qr-details { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+      .wifi-qr-summary { padding: 10px 14px; cursor: pointer; font-size: 0.875rem; font-weight: 600; color: #1a2e1a; background: #f0fdf4; list-style: none; display: flex; align-items: center; gap: 6px; }
+      .wifi-qr-summary::before { content: '📶'; }
+      .wifi-qr-summary::-webkit-details-marker { display: none; }
+      .wifi-qr-body { display: flex; flex-direction: column; align-items: center; padding: 16px; gap: 8px; background: #fff; }
+      .wifi-qr-hint { font-size: 0.8rem; color: var(--gray-600); text-align: center; margin: 0; }
     </style>
   </head>
   <body>

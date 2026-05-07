@@ -1,6 +1,7 @@
 import { RecordForm } from './ui/RecordForm';
 import { RecordList } from './ui/RecordList';
 import { SyncStatus } from './ui/SyncStatus';
+import { WifiQR } from './ui/WifiQR';
 import { getPendingRecords, markRecordsSynced } from './db/indexeddb';
 import { isBridgeReachable, flushRecords } from './sync/bridgeSync';
 import { BLESync } from './sync/bleSync';
@@ -100,6 +101,10 @@ async function main() {
     </div>
   `;
     app.appendChild(header);
+    // Wi-Fi QR — lets patients share the clinic hotspot with others
+    const wifiQrEl = await WifiQR(resolvedBridge);
+    if (wifiQrEl)
+        app.appendChild(wifiQrEl);
     // Sync status banner
     const { el: syncEl, update: updateSync } = SyncStatus();
     app.appendChild(syncEl);
