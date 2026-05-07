@@ -1,31 +1,32 @@
 import QRCode from 'qrcode';
 
 export interface QRPanelConfig {
-  /** Public bridge URL — used to POST /session and as ?bridge= param */
+  /** Public bridge URL — embedded in QR as ?bridge= param for the phone to sync to */
   bridgeUrl: string;
-  /**
-   * If set, QR points to GitHub Pages with ?session=&bridge= params.
-   * If empty, QR points directly to the bridge URL.
-   */
+  /** Local bridge URL — used by dashboard to POST /session (always localhost) */
+  localBridgeUrl: string;
+  /** GitHub Pages URL — if set, QR points here with ?session=&bridge= */
   githubPagesUrl?: string;
+  /** Wi-Fi SSID for the WiFi join QR */
+  ssid: string;
+  /** Wi-Fi password for the WiFi join QR */
+  password: string;
 }
 
 /**
- * QRPanel — renders the doctor's QR generation UI.
+ * QRPanel — shown after doctor saves a record.
  *
- * Flow:
- *   Doctor enters ID + Name → clicks Generate
- *   → POST /session to bridge → gets back a short code (e.g. "A3F9")
- *   → QR encodes: <bridgeUrl>?session=A3F9
- *   → Patient scans → PWA loads → fetches GET /session/A3F9 → doctor context pre-filled
+ * Shows TWO QR codes side by side:
+ *   Step 1: Scan to join ClinicBridge WiFi (WIFI: format)
+ *   Step 2: Scan to open patient records on phone
  *
- * No doctor data in the URL. Session stored on the bridge, expires after 8h.
+ * Patient scans Step 1 first (joins bridge WiFi), then Step 2 (opens their records).
+ * Records update in real-time as doctor edits.
  */
 export function QRPanel(cfg: QRPanelConfig): {
   el: HTMLElement;
-  show: () => void;
+  showForPatient: (patientId: string) => Promise<void>;
   hide: () => void;
-  toggle: () => void;
 } {
   const el = document.createElement('div');
   el.className = 'qr-panel';
@@ -33,92 +34,75 @@ export function QRPanel(cfg: QRPanelConfig): {
 
   el.innerHTML = `
     <div class="qr-panel-inner">
-      <div class="qr-form-row">
-        <div class="qr-field">
-          <label for="qr-doctor-id">Doctor ID</label>
-          <input id="qr-doctor-id" type="text" placeholder="e.g. DR-01" />
-        </div>
-        <div class="qr-field">
-          <label for="qr-doctor-name">Doctor Name</label>
-          <input id="qr-doctor-name" type="text" placeholder="e.g. Dr. Smith" />
-        </div>
-        <button id="qr-generate-btn" class="qr-generate-btn">Generate QR</button>
+      <div class="qr-panel-header">
+        <span id="qr-patient-label" class="qr-patient-label"></span>
+        <button id="qr-close-btn" class="qr-close-btn">✕ Close</button>
       </div>
-      <div id="qr-error" class="qr-error" style="display:none"></div>
-      <div id="qr-output" class="qr-output" style="display:none">
+      <div class="qr-grid">
         <div class="qr-box">
-          <div class="qr-step-label">Scan to Open Patient Form</div>
-          <canvas id="qr-pwa-canvas"></canvas>
-          <p class="qr-hint">Patient scans this QR — doctor info is pre-filled automatically</p>
+          <div class="qr-step-label"><span class="qr-step qr-step--1">1</span> Join Clinic WiFi</div>
+          <canvas id="qr-wifi-canvas"></canvas>
+          <p class="qr-hint">Scan with camera to join <strong>${cfg.ssid}</strong></p>
+        </div>
+        <div class="qr-box">
+          <div class="qr-step-label"><span class="qr-step qr-step--2">2</span> Open Your Records</div>
+          <canvas id="qr-patient-canvas"></canvas>
+          <p class="qr-hint">Scan to view your records — updates live as doctor adds notes</p>
           <div class="qr-url-box" id="qr-url-display"></div>
         </div>
-        <button id="qr-print-btn" class="qr-print-btn" onclick="window.print()">Print</button>
       </div>
+      <p class="qr-instructions">Patient scans Step 1 to join the clinic network, then Step 2 to open their records on their phone.</p>
     </div>
   `;
 
-  const doctorIdInput = el.querySelector<HTMLInputElement>('#qr-doctor-id')!;
-  const doctorNameInput = el.querySelector<HTMLInputElement>('#qr-doctor-name')!;
-  const generateBtn = el.querySelector<HTMLButtonElement>('#qr-generate-btn')!;
-  const output = el.querySelector<HTMLElement>('#qr-output')!;
-  const errorEl = el.querySelector<HTMLElement>('#qr-error')!;
-  const pwaCanvas = el.querySelector<HTMLCanvasElement>('#qr-pwa-canvas')!;
-  const urlDisplay = el.querySelector<HTMLElement>('#qr-url-display')!;
+  el.querySelector('#qr-close-btn')!.addEventListener('click', () => {
+    el.style.display = 'none';
+  });
 
-  generateBtn.addEventListener('click', async () => {
-    const doctorId = doctorIdInput.value.trim();
-    const doctorName = doctorNameInput.value.trim();
+  const wifiCanvas   = el.querySelector<HTMLCanvasElement>('#qr-wifi-canvas')!;
+  const patientCanvas = el.querySelector<HTMLCanvasElement>('#qr-patient-canvas')!;
+  const patientLabel = el.querySelector<HTMLElement>('#qr-patient-label')!;
+  const urlDisplay   = el.querySelector<HTMLElement>('#qr-url-display')!;
 
-    if (!doctorId) {
-      doctorIdInput.focus();
-      doctorIdInput.style.borderColor = '#ea4335';
-      return;
-    }
-    doctorIdInput.style.borderColor = '';
-    errorEl.style.display = 'none';
-    generateBtn.disabled = true;
-    generateBtn.textContent = 'Generating...';
+  // Pre-render the WiFi QR immediately (it never changes)
+  QRCode.toCanvas(wifiCanvas, `WIFI:S:${cfg.ssid};T:WPA;P:${cfg.password};;`, {
+    width: 220, margin: 2,
+    color: { dark: '#1a2e1a', light: '#ffffff' },
+  }).catch(() => {});
+
+  const showForPatient = async (patientId: string) => {
+    patientLabel.textContent = `Patient: ${patientId}`;
+    el.style.display = 'block';
 
     try {
-      // POST doctor context to bridge, get back a short session code
-      const res = await fetch(`${cfg.bridgeUrl}/session`, {
+      // Create session on bridge for this patientId
+      const res = await fetch(`${cfg.localBridgeUrl}/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ doctorId, doctorName }),
+        body: JSON.stringify({ patientId }),
       });
-
       if (!res.ok) throw new Error(`Bridge returned ${res.status}`);
       const { code } = await res.json();
 
-      // Build QR URL:
-      // - If GitHub Pages URL configured → point there with ?session=&bridge=
-      // - Otherwise → point directly to bridge with ?session=
+      // Build patient URL
       const pwaUrl = cfg.githubPagesUrl
         ? `${cfg.githubPagesUrl}?session=${code}&bridge=${encodeURIComponent(cfg.bridgeUrl)}`
         : `${cfg.bridgeUrl}?session=${code}`;
 
-      await QRCode.toCanvas(pwaCanvas, pwaUrl, {
-        width: 280,
-        margin: 2,
+      await QRCode.toCanvas(patientCanvas, pwaUrl, {
+        width: 220, margin: 2,
         color: { dark: '#1a1a73', light: '#ffffff' },
       });
 
       urlDisplay.textContent = pwaUrl;
-      output.style.display = 'block';
     } catch (err: any) {
-      console.error('[qr] Generation failed:', err);
-      errorEl.textContent = `Failed to create session: ${err.message}. Is the bridge running?`;
-      errorEl.style.display = 'block';
-    } finally {
-      generateBtn.disabled = false;
-      generateBtn.textContent = 'Generate QR';
+      patientLabel.textContent = `Error: ${err.message}`;
     }
-  });
+  };
 
   return {
     el,
-    show:   () => { el.style.display = 'block'; },
-    hide:   () => { el.style.display = 'none'; },
-    toggle: () => { el.style.display = el.style.display === 'none' ? 'block' : 'none'; },
+    showForPatient,
+    hide: () => { el.style.display = 'none'; },
   };
 }

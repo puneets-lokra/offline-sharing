@@ -32,16 +32,28 @@ export async function startBLE(db: Database): Promise<BLEServer | null> {
     const writeChar = new WriteCharacteristic(bleno, db, notifyChar);
     const readChar = new ReadCharacteristic(bleno, db);
 
+    // bleno registers its own SIGINT/SIGTERM handlers that call process.exit().
+    // Remove them so the bridge shutdown handler stays in control.
+    const removeBlenoSignalHandlers = () => {
+      process.removeAllListeners('SIGINT');
+      process.removeAllListeners('SIGTERM');
+    };
+
+    const done = (result: BLEServer | null) => {
+      removeBlenoSignalHandlers();
+      resolve(result);
+    };
+
     const timeout = setTimeout(() => {
       console.warn('[ble] BLE state timeout — continuing without BLE');
-      resolve(null);
+      done(null);
     }, 5000);
 
     bleno.on('stateChange', (state: string) => {
       if (state !== 'poweredOn') {
         console.warn(`[ble] Bluetooth state: ${state} — BLE not available`);
         clearTimeout(timeout);
-        resolve(null);
+        done(null);
         return;
       }
 
@@ -49,7 +61,7 @@ export async function startBLE(db: Database): Promise<BLEServer | null> {
         if (err) {
           console.warn('[ble] Failed to start advertising:', err.message);
           clearTimeout(timeout);
-          resolve(null);
+          done(null);
         }
       });
     });
@@ -58,7 +70,7 @@ export async function startBLE(db: Database): Promise<BLEServer | null> {
       clearTimeout(timeout);
       if (err) {
         console.warn('[ble] advertisingStart error:', err.message);
-        resolve(null);
+        done(null);
         return;
       }
 
@@ -71,7 +83,7 @@ export async function startBLE(db: Database): Promise<BLEServer | null> {
 
       console.log('[ble] BLE GATT server advertising as "ClinicBridge"');
 
-      resolve({
+      done({
         notifyChar,
         stop: () => {
           bleno.stopAdvertising();

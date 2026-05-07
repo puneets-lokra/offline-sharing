@@ -1,215 +1,103 @@
-import { RecordForm } from './ui/RecordForm';
-import { RecordList } from './ui/RecordList';
-import { SyncStatus } from './ui/SyncStatus';
-import { WifiQR } from './ui/WifiQR';
-import { getPendingRecords, markRecordsSynced } from './db/indexeddb';
-import { isBridgeReachable, flushRecords } from './sync/bridgeSync';
-import { BLESync } from './sync/bleSync';
-const SYNC_POLL_INTERVAL_MS = 5000;
-// Read session code from URL — all doctor context comes from the bridge API
+"use strict";
+// Service worker registration handled by vite-plugin-pwa via registerSW.js
+const POLL_INTERVAL_MS = 3000;
 const urlParams = new URLSearchParams(window.location.search);
 const sessionCode = urlParams.get('session') ?? '';
-/**
- * Fetches doctor context from the bridge using the session code.
- * Returns empty strings if no session or bridge unreachable.
- */
-async function fetchSessionContext(bridgeUrl, code) {
-    if (!code)
-        return { doctorId: '', doctorName: '' };
+const explicitBridge = urlParams.get('bridge') ?? '';
+/** Resolve which bridge URL to use */
+function resolveBridgeUrl() {
+    if (explicitBridge)
+        return explicitBridge.replace(/\/$/, '');
+    const { protocol, hostname, port } = window.location;
+    const origin = `${protocol}//${hostname}${port ? ':' + port : ''}`;
+    if (!origin.includes('github.io'))
+        return origin;
+    return 'http://192.168.137.1:8765';
+}
+const bridgeUrl = resolveBridgeUrl();
+/** Fetch patientId from bridge session */
+async function fetchSession() {
+    if (!sessionCode)
+        return null;
     try {
-        const res = await fetch(`${bridgeUrl}/session/${code}`, { signal: AbortSignal.timeout(4000) });
-        if (res.ok)
-            return await res.json();
+        const res = await fetch(`${bridgeUrl}/session/${sessionCode}`, { signal: AbortSignal.timeout(4000) });
+        if (!res.ok)
+            return null;
+        const { patientId } = await res.json();
+        return patientId ?? null;
     }
-    catch { /* bridge not reachable yet */ }
-    return { doctorId: '', doctorName: '' };
+    catch {
+        return null;
+    }
 }
-// Single shared BLE instance
-const bleSync = new BLESync((status) => {
-    console.log('[ble-status]', status);
-});
-async function renderRecordList(container) {
-    const existing = container.querySelector('.record-list');
-    if (existing)
-        existing.remove();
-    const list = await RecordList();
-    container.appendChild(list);
+/** Fetch records for this patient from bridge */
+async function fetchRecords(patientId) {
+    try {
+        const res = await fetch(`${bridgeUrl}/records/${encodeURIComponent(patientId)}`, { signal: AbortSignal.timeout(4000) });
+        if (!res.ok)
+            return [];
+        const { records } = await res.json();
+        return records ?? [];
+    }
+    catch {
+        return [];
+    }
 }
-/** Send all pending IndexedDB records via BLE */
-async function bleSendPending(listSection) {
-    const pending = await getPendingRecords();
-    if (pending.length === 0)
-        return { sent: 0, failed: 0 };
-    const syncedIds = [];
-    for (const record of pending) {
-        try {
-            await bleSync.sendRecord(record);
-            syncedIds.push(record.id);
-        }
-        catch {
-            // continue — will retry on next attempt
-        }
+function renderRecords(container, records) {
+    if (records.length === 0) {
+        container.innerHTML = `<p class="empty">No records yet. Your doctor will add them shortly.</p>`;
+        return;
     }
-    if (syncedIds.length > 0) {
-        await markRecordsSynced(syncedIds);
-        await renderRecordList(listSection);
-    }
-    return { sent: syncedIds.length, failed: pending.length - syncedIds.length };
+    container.innerHTML = records.map(r => `
+    <div class="record-card">
+      <div class="record-card-header">
+        <span class="record-name">${r.name}</span>
+        <span class="record-time">${new Date(r.timestamp).toLocaleString()}</span>
+      </div>
+      <div class="record-row"><span class="record-label">Patient ID</span><span>${r.patientId}</span></div>
+      <div class="record-row"><span class="record-label">Age / Gender</span><span>${r.age} / ${r.gender}</span></div>
+      <div class="record-row"><span class="record-label">Doctor</span><span>${r.doctorId}</span></div>
+      <div class="record-row"><span class="record-label">Diagnosis</span><span class="record-diagnosis">${r.diagnosis}</span></div>
+      ${r.notes ? `<div class="record-row"><span class="record-label">Notes</span><span>${r.notes}</span></div>` : ''}
+    </div>
+  `).join('');
 }
 async function main() {
     const app = document.getElementById('app');
-    // Resolve bridge URL first (needed for session fetch + sync)
-    // resolveBridgeUrl is not exported, so we do a quick probe here via isBridgeReachable
-    // then grab the URL by checking candidates in order
-    const bridgeCandidates = (() => {
-        const c = [];
-        const params = new URLSearchParams(window.location.search);
-        const explicit = params.get('bridge');
-        if (explicit)
-            c.push(explicit.replace(/\/$/, ''));
-        const { protocol, hostname, port } = window.location;
-        const origin = `${protocol}//${hostname}${port ? ':' + port : ''}`;
-        if (!origin.includes('github.io'))
-            c.push(origin);
-        c.push('http://localhost:8765');
-        c.push('http://192.168.137.1:8765');
-        return [...new Set(c)];
-    })();
-    let resolvedBridge = bridgeCandidates[0];
-    for (const url of bridgeCandidates) {
-        try {
-            const r = await fetch(`${url}/health`, { signal: AbortSignal.timeout(3000) });
-            if (r.ok) {
-                resolvedBridge = url;
-                break;
-            }
-        }
-        catch { /* try next */ }
-    }
-    // Fetch doctor context from bridge session
-    const { doctorId: qrDoctorId, doctorName: qrDoctorName } = await fetchSessionContext(resolvedBridge, sessionCode);
-    const isPatientMode = qrDoctorId.length > 0;
-    ;
-    // Header
-    const header = document.createElement('header');
-    header.innerHTML = `
-    <div class="header-inner">
-      <h1>${isPatientMode ? 'Patient Check-In' : 'Clinic Records'}</h1>
-      <p class="subtitle">${isPatientMode
-        ? `Assigned to <strong>${qrDoctorName || qrDoctorId}</strong>`
-        : 'Offline patient data capture'}</p>
-    </div>
+    app.innerHTML = `
+    <header>
+      <h1>Your Health Records</h1>
+      <p id="subtitle">Connecting to clinic...</p>
+    </header>
+    <div id="status-bar" class="status-bar status-bar--checking">Connecting...</div>
+    <main id="records-container" class="records-container"></main>
   `;
-    app.appendChild(header);
-    // Wi-Fi QR — lets patients share the clinic hotspot with others
-    const wifiQrEl = await WifiQR(resolvedBridge);
-    if (wifiQrEl)
-        app.appendChild(wifiQrEl);
-    // Sync status banner
-    const { el: syncEl, update: updateSync } = SyncStatus();
-    app.appendChild(syncEl);
-    // BLE connect button (only shown if Web Bluetooth available)
-    if (BLESync.isSupported()) {
-        const bleBar = document.createElement('div');
-        bleBar.className = 'ble-bar';
-        bleBar.innerHTML = `
-      <button id="ble-btn" class="ble-btn">Connect via Bluetooth</button>
-      <span id="ble-status" class="ble-status">Disconnected</span>
-    `;
-        app.appendChild(bleBar);
-        const bleBtn = bleBar.querySelector('#ble-btn');
-        const bleStatusEl = bleBar.querySelector('#ble-status');
-        bleBtn.addEventListener('click', async () => {
-            if (bleSync.isConnected) {
-                bleSync.disconnect();
-                bleBtn.textContent = 'Connect via Bluetooth';
-                bleStatusEl.textContent = 'Disconnected';
-                bleStatusEl.className = 'ble-status';
-                return;
-            }
-            bleBtn.disabled = true;
-            bleBtn.textContent = 'Connecting...';
-            try {
-                await bleSync.connect();
-                bleBtn.textContent = 'Disconnect Bluetooth';
-                bleStatusEl.textContent = 'Connected';
-                bleStatusEl.className = 'ble-status ble-status--connected';
-                // Immediately flush pending records over BLE after connect
-                const listSection = document.querySelector('.section:last-of-type');
-                const { sent } = await bleSendPending(listSection);
-                if (sent > 0) {
-                    updateSync({ status: 'synced', count: sent });
-                }
-            }
-            catch (err) {
-                bleBtn.textContent = 'Connect via Bluetooth';
-                bleStatusEl.textContent = `BLE error: ${err.message}`;
-                bleStatusEl.className = 'ble-status ble-status--error';
-            }
-            finally {
-                bleBtn.disabled = false;
-            }
-        });
+    const subtitle = document.getElementById('subtitle');
+    const statusBar = document.getElementById('status-bar');
+    const recordsContainer = document.getElementById('records-container');
+    // Resolve patientId
+    const patientId = await fetchSession();
+    if (!patientId) {
+        subtitle.textContent = 'No session found';
+        statusBar.textContent = sessionCode
+            ? 'Session expired or invalid. Ask your doctor to regenerate the QR code.'
+            : 'No session code in URL. Scan the QR code from your doctor.';
+        statusBar.className = 'status-bar status-bar--error';
+        return;
     }
-    // Main content
-    const mainEl = document.createElement('main');
-    app.appendChild(mainEl);
-    // Record form
-    const formSection = document.createElement('section');
-    formSection.className = 'section';
-    formSection.appendChild(RecordForm(async () => {
-        await renderRecordList(listSection);
-        // If BLE is connected, send the newly added record immediately
-        if (bleSync.isConnected) {
-            await bleSendPending(listSection);
+    subtitle.textContent = `Patient ID: ${patientId}`;
+    // Real-time polling loop
+    let lastCount = -1;
+    async function poll() {
+        const records = await fetchRecords(patientId);
+        if (records.length !== lastCount) {
+            renderRecords(recordsContainer, records);
+            lastCount = records.length;
         }
-    }, { doctorId: qrDoctorId, doctorName: qrDoctorName }));
-    mainEl.appendChild(formSection);
-    // Record list
-    const listSection = document.createElement('section');
-    listSection.className = 'section';
-    mainEl.appendChild(listSection);
-    await renderRecordList(listSection);
-    // HTTP sync polling loop (runs alongside BLE — whichever connects first wins)
-    async function syncLoop() {
-        // Skip HTTP poll if BLE is actively sending
-        if (bleSync.status === 'sending')
-            return;
-        updateSync({ status: 'checking' });
-        const reachable = await isBridgeReachable();
-        if (!reachable) {
-            updateSync({ status: 'offline' });
-            return;
-        }
-        const pending = await getPendingRecords();
-        if (pending.length === 0) {
-            updateSync({ status: 'synced', count: 0 });
-            return;
-        }
-        updateSync({ status: 'reachable', pendingCount: pending.length });
-        await new Promise((r) => setTimeout(r, 500));
-        updateSync({ status: 'syncing', total: pending.length, done: 0 });
-        try {
-            const syncedIds = await flushRecords(pending);
-            await markRecordsSynced(syncedIds);
-            if (syncedIds.length > 0) {
-                await renderRecordList(listSection);
-            }
-            if (syncedIds.length < pending.length) {
-                updateSync({
-                    status: 'error',
-                    message: `${pending.length - syncedIds.length} record(s) failed to send`,
-                });
-            }
-            else {
-                updateSync({ status: 'synced', count: syncedIds.length });
-            }
-        }
-        catch (err) {
-            updateSync({ status: 'error', message: err.message });
-        }
+        statusBar.textContent = `Live — last updated ${new Date().toLocaleTimeString()}`;
+        statusBar.className = 'status-bar status-bar--ok';
     }
-    await syncLoop();
-    setInterval(syncLoop, SYNC_POLL_INTERVAL_MS);
+    await poll();
+    setInterval(poll, POLL_INTERVAL_MS);
 }
 main();

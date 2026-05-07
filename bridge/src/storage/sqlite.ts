@@ -92,6 +92,15 @@ export class Database {
     this.persist();
   }
 
+  /** Returns all records for a specific patientId ordered by timestamp descending */
+  getRecordsByPatientId(patientId: string): PatientRecord[] {
+    const result = this.db.exec(
+      `SELECT * FROM records WHERE patientId = ? ORDER BY timestamp DESC`,
+      [patientId]
+    );
+    return this.toRecords(result);
+  }
+
   /** Returns all records ordered by timestamp descending */
   getAllRecords(): PatientRecord[] {
     const result = this.db.exec(`SELECT * FROM records ORDER BY timestamp DESC`);

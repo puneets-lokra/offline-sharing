@@ -2,8 +2,8 @@ import { HttpPoller, PatientRecord } from './sync/httpPoller';
 import { BLEReceiver } from './sync/bleReceiver';
 import { RecordTable } from './ui/RecordTable';
 import { QRPanel } from './ui/QRPanel';
+import { PatientForm } from './ui/PatientForm';
 
-// In-memory record store (keyed by id for deduplication)
 const recordMap = new Map<string, PatientRecord>();
 
 let tableContainer: HTMLElement;
@@ -29,8 +29,7 @@ function renderTable(): void {
   const sorted = Array.from(recordMap.values()).sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
-  const newTable = RecordTable(sorted);
-  tableContainer.replaceChildren(newTable);
+  tableContainer.replaceChildren(RecordTable(sorted));
 }
 
 function updateStats(): void {
@@ -40,19 +39,18 @@ function updateStats(): void {
   syncedEl.textContent  = String(all.filter((r) => r.syncStatus === 'synced').length);
 }
 
-/**
- * Fetches QR config from the bridge (pwaBaseUrl, ssid, password).
- * Falls back to sensible defaults if bridge not reachable yet.
- */
-async function fetchQRConfig(): Promise<{ bridgeUrl: string; githubPagesUrl: string }> {
+async function fetchQRConfig(): Promise<{ bridgeUrl: string; localBridgeUrl: string; githubPagesUrl: string; ssid: string; password: string }> {
   const candidates = ['http://localhost:8765', 'http://192.168.137.1:8765'];
   for (const base of candidates) {
     try {
       const res = await fetch(`${base}/qr-config`, { signal: AbortSignal.timeout(2000) });
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const cfg = await res.json();
+        return { ...cfg, localBridgeUrl: base };
+      }
     } catch { /* try next */ }
   }
-  return { bridgeUrl: 'http://192.168.137.1:8765', githubPagesUrl: '' };
+  return { bridgeUrl: 'http://192.168.137.1:8765', localBridgeUrl: 'http://localhost:8765', githubPagesUrl: '', ssid: 'ClinicBridge', password: 'clinic1234' };
 }
 
 async function main() {
@@ -61,20 +59,20 @@ async function main() {
   app.innerHTML = `
     <header>
       <h1>Clinic Dashboard</h1>
-      <p>Live patient records — received from Doctor PWA via Wi-Fi or Bluetooth</p>
+      <p>Doctor view — add patient records and share via QR</p>
     </header>
 
     <div class="connection-bar">
-      <button id="http-btn" class="conn-btn conn-btn--http">Stop HTTP Polling</button>
+      <button id="http-btn" class="conn-btn conn-btn--http">Stop Polling</button>
       <span id="http-status" class="conn-status">Polling...</span>
-      <button id="qr-btn" class="conn-btn conn-btn--qr">Show Patient QR</button>
       ${BLEReceiver.isSupported() ? `
-        <button id="ble-btn" class="conn-btn conn-btn--ble">Connect via Bluetooth</button>
+        <button id="ble-btn" class="conn-btn conn-btn--ble">Connect Bluetooth</button>
         <span id="ble-status" class="conn-status">Disconnected</span>
       ` : ''}
     </div>
 
     <div id="qr-panel-container"></div>
+    <div id="form-container"></div>
 
     <div class="stats-bar">
       <div class="stat"><span id="stat-total" class="stat-val">0</span>Total</div>
@@ -94,16 +92,18 @@ async function main() {
   renderTable();
   updateStats();
 
-  // --- QR Panel ---
+  // --- Fetch config & setup QR panel ---
   const qrCfg = await fetchQRConfig();
   const qrPanel = QRPanel(qrCfg);
   document.getElementById('qr-panel-container')!.appendChild(qrPanel.el);
 
-  const qrBtn = document.getElementById('qr-btn') as HTMLButtonElement;
-  qrBtn.addEventListener('click', () => {
-    qrPanel.toggle();
-    qrBtn.textContent = qrPanel.el.style.display === 'none' ? 'Show Patient QR' : 'Hide Patient QR';
+  // --- Patient form (doctor fills this) ---
+  const formEl = PatientForm(qrCfg.localBridgeUrl, (patientId, record) => {
+    upsertRecord(record as PatientRecord);
+    // Auto-show QR panel for this patient after saving
+    qrPanel.showForPatient(patientId);
   });
+  document.getElementById('form-container')!.appendChild(formEl);
 
   // --- HTTP Polling ---
   const poller = new HttpPoller(
@@ -121,13 +121,13 @@ async function main() {
   httpBtn.addEventListener('click', () => {
     if (polling) {
       poller.stop();
-      httpBtn.textContent = 'Start HTTP Polling';
+      httpBtn.textContent = 'Start Polling';
       httpStatusEl.textContent = 'Stopped';
       httpStatusEl.className = 'conn-status';
       polling = false;
     } else {
       poller.start();
-      httpBtn.textContent = 'Stop HTTP Polling';
+      httpBtn.textContent = 'Stop Polling';
       polling = true;
     }
   });
@@ -143,7 +143,7 @@ async function main() {
         bleStatusEl.textContent = status;
         bleStatusEl.className = `conn-status ${status === 'subscribed' ? 'conn-status--ok' : status === 'error' ? 'conn-status--error' : ''}`;
         bleBtn.disabled = false;
-        bleBtn.textContent = status === 'subscribed' ? 'Disconnect Bluetooth' : 'Connect via Bluetooth';
+        bleBtn.textContent = status === 'subscribed' ? 'Disconnect Bluetooth' : 'Connect Bluetooth';
       }
     );
 
@@ -157,7 +157,7 @@ async function main() {
         bleStatusEl.textContent = `Error: ${err.message}`;
         bleStatusEl.className = 'conn-status conn-status--error';
         bleBtn.disabled = false;
-        bleBtn.textContent = 'Connect via Bluetooth';
+        bleBtn.textContent = 'Connect Bluetooth';
       }
     });
   }

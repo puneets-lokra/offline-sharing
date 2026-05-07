@@ -12,6 +12,6 @@
   "db": {
     "path": "./data/bridge.db"
   },
-  "ngrokUrl": "https://commonwealth-formerly-canberra-increased.trycloudflare.com",
+  "ngrokUrl": "https://hughes-atm-competitions-pavilion.trycloudflare.com",
   "githubPagesUrl": "https://puneets-lokra.github.io/offline-sharing"
 }

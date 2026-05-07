@@ -37,12 +37,14 @@ async function main() {
   let bleServer: BLEServer | null = null;
   try {
     bleServer = await startBLE(db);
-    console.log('[bridge] BLE GATT server started — both HTTP and BLE transports active');
+    if (bleServer) {
+      console.log('[bridge] BLE GATT server started — both HTTP and BLE transports active');
+    }
   } catch (err: any) {
     console.warn('[bridge] BLE unavailable — HTTP-only mode:', err.message);
   }
 
-  // Graceful shutdown
+  // Graceful shutdown — re-registered here because bleno removes all SIGINT/SIGTERM listeners
   const shutdown = async () => {
     console.log('[bridge] Shutting down...');
     cloudSync.stop();
