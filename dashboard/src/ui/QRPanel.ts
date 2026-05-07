@@ -1,11 +1,13 @@
 import QRCode from 'qrcode';
 
 export interface QRPanelConfig {
-  /**
-   * Public bridge URL patients will connect to.
-   * e.g. https://abc123.trycloudflare.com or http://192.168.137.1:8765
-   */
+  /** Public bridge URL — used to POST /session and as ?bridge= param */
   bridgeUrl: string;
+  /**
+   * If set, QR points to GitHub Pages with ?session=&bridge= params.
+   * If empty, QR points directly to the bridge URL.
+   */
+  githubPagesUrl?: string;
 }
 
 /**
@@ -88,8 +90,12 @@ export function QRPanel(cfg: QRPanelConfig): {
       if (!res.ok) throw new Error(`Bridge returned ${res.status}`);
       const { code } = await res.json();
 
-      // QR encodes only the bridge URL + session code — no PII in the URL
-      const pwaUrl = `${cfg.bridgeUrl}?session=${code}`;
+      // Build QR URL:
+      // - If GitHub Pages URL configured → point there with ?session=&bridge=
+      // - Otherwise → point directly to bridge with ?session=
+      const pwaUrl = cfg.githubPagesUrl
+        ? `${cfg.githubPagesUrl}?session=${code}&bridge=${encodeURIComponent(cfg.bridgeUrl)}`
+        : `${cfg.bridgeUrl}?session=${code}`;
 
       await QRCode.toCanvas(pwaCanvas, pwaUrl, {
         width: 280,

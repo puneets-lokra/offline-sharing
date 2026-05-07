@@ -44,7 +44,7 @@ function updateStats(): void {
  * Fetches QR config from the bridge (pwaBaseUrl, ssid, password).
  * Falls back to sensible defaults if bridge not reachable yet.
  */
-async function fetchQRConfig(): Promise<{ bridgeUrl: string }> {
+async function fetchQRConfig(): Promise<{ bridgeUrl: string; githubPagesUrl: string }> {
   const candidates = ['http://localhost:8765', 'http://192.168.137.1:8765'];
   for (const base of candidates) {
     try {
@@ -52,7 +52,7 @@ async function fetchQRConfig(): Promise<{ bridgeUrl: string }> {
       if (res.ok) return await res.json();
     } catch { /* try next */ }
   }
-  return { bridgeUrl: 'http://192.168.137.1:8765' };
+  return { bridgeUrl: 'http://192.168.137.1:8765', githubPagesUrl: '' };
 }
 
 async function main() {

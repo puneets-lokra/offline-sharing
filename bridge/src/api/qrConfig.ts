@@ -18,6 +18,7 @@ export function qrConfigRouter(config: BridgeConfig): Router {
 
     res.json({
       bridgeUrl,
+      githubPagesUrl: (config.githubPagesUrl ?? '').replace(/\/$/, ''),
       ssid:     config.hotspot.ssid,
       password: config.hotspot.password,
     });
